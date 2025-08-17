@@ -1,0 +1,66 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id           String       @id @default(uuid())
+  email        String       @unique
+  username     String       @unique
+  passwordHash String
+  locale       String       @default("fr")
+  createdAt    DateTime     @default(now())
+  isActive     Boolean      @default(true)
+  Profile      Profile?
+  Rounds       Round[]
+  Scores       ScoreEvent[]
+  Inventory    Inventory?
+}
+
+model Profile {
+  userId      String  @id
+  displayName String
+  avatarUrl   String?
+  country     String?
+  user        User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model Round {
+  id            String       @id @default(uuid())
+  userId        String
+  level         Int
+  contactId     String
+  multiplicator Decimal      @default(1.00)
+  turns         Int          @default(0)
+  status        String       @default("running")
+  startedAt     DateTime     @default(now())
+  finishedAt    DateTime?
+  user          User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  Scores        ScoreEvent[]
+
+  @@index([userId, startedAt])
+}
+
+model ScoreEvent {
+  id         String   @id @default(uuid())
+  userId     String
+  roundId    String?
+  type       String
+  delta      Int
+  payload    Json     @default("{}")
+  occurredAt DateTime @default(now())
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  round      Round?   @relation(fields: [roundId], references: [id])
+
+  @@index([userId, occurredAt])
+}
+
+model Inventory {
+  userId     String @id
+  hintTokens Int    @default(0)
+  user       User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+}

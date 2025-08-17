@@ -1,0 +1,29 @@
+{
+  "name": "game",
+  "version": "1.0.0",
+  "private": true,
+  "packageManager": "pnpm@10.14.0",
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
+  "prisma": {
+    "seed": "node prisma/seed.js"
+  },
+  "scripts": {
+    "dev:db": "docker compose -f infra/docker-compose.yml up -d",
+    "dev:web": "pnpm -C apps/frontend dev",
+    "dev:api": "pnpm -C apps/api start:dev",
+    "db:seed": "prisma db seed"
+  },
+  "pnpm": {
+    "overrides": {
+      "@nestjs/common": "11.1.6",
+      "@nestjs/core": "11.1.6",
+      "@nestjs/platform-express": "11.1.6",
+      "@nestjs/swagger": "11.2.0",
+      "reflect-metadata": "0.2.2",
+      "rxjs": "7.8.2"
+    }
+  }
+}
