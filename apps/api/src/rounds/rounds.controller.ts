@@ -1,47 +1,35 @@
-import { Body, Controller, Param, Post, Req } from '@nestjs/common';
+import { Body, Controller, Param, Post } from '@nestjs/common';
+import { ApiOperation, ApiTags } from '@nestjs/swagger';
 import { RoundsService } from './rounds.service';
-import { ApiOperation, ApiResponse, ApiTags } from '@nestjs/swagger';
 import { StartRoundDto } from './dto/start-round.dto';
 import { GuessDto } from './dto/guess.dto';
-import { RevealResponse } from './dto/reveal.response';
-import { GuessResponse } from './dto/guess.response';
 import { RoundEntity } from './dto/round.entity';
+import { RevealResponseDto } from './dto/reveal.response';
+import { GuessResponseDto } from './dto/guess.response';
 
-@ApiTags('Rounds')
+@ApiTags('rounds')
 @Controller('v1/rounds')
 export class RoundsController {
-  constructor(private readonly svc: RoundsService) {}
+  constructor(private readonly service: RoundsService) {}
 
   @Post('start')
   @ApiOperation({ summary: 'Démarrer un round' })
-  @ApiResponse({ status: 201, type: RoundEntity })
-  start(@Req() req: any, @Body() body: StartRoundDto) {
-    const userId = req.user?.id ?? process.env.DEV_USER_ID!;
-    return this.svc.start(userId, body.level, body.contactId);
+  start(@Body() dto: StartRoundDto): Promise<RoundEntity> {
+    return this.service.start(dto);
   }
 
   @Post(':id/reveal')
-  @ApiOperation({ summary: 'Révéler un message et diminuer le multiplicateur' })
-  @ApiResponse({ status: 200, type: RevealResponse })
-  async reveal(
-    @Req() req: any,
-    @Param('id') id: string,
-  ): Promise<RevealResponse> {
-    const userId = req.user?.id ?? process.env.DEV_USER_ID!;
-    const r = await this.svc.reveal(userId, id);
-    return {
-      roundId: r.id,
-      newMultiplicator: Number(r.multiplicator),
-      turns: r.turns,
-      scoreEvent: { type: 'reveal', delta: 0 },
-    };
+  @ApiOperation({ summary: 'Révéler le prochain message' })
+  reveal(@Param('id') id: string): Promise<RevealResponseDto> {
+    return this.service.reveal(id) as unknown as Promise<RevealResponseDto>;
   }
 
   @Post(':id/guess')
   @ApiOperation({ summary: 'Proposer une réponse' })
-  @ApiResponse({ status: 200, type: GuessResponse })
-  guess(@Req() req: any, @Param('id') id: string, @Body() body: GuessDto) {
-    const userId = req.user?.id ?? process.env.DEV_USER_ID!;
-    return this.svc.guess(userId, id, body.correct);
+  guess(
+    @Param('id') id: string,
+    @Body() dto: GuessDto,
+  ): Promise<GuessResponseDto> {
+    return this.service.guess(id, dto) as unknown as Promise<GuessResponseDto>;
   }
 }

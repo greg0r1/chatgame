@@ -1,6 +1,6 @@
 import { ApiProperty } from '@nestjs/swagger';
 
-export class RevealResponse {
+export class RevealResponseDto {
   @ApiProperty()
   roundId: string;
 

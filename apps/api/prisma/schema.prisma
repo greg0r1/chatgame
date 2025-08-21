@@ -64,3 +64,25 @@ model Inventory {
   hintTokens Int    @default(0)
   user       User   @relation(fields: [userId], references: [id], onDelete: Cascade)
 }
+
+model Contact {
+  id          String   @id
+  usageName   String
+  photoUrl    String?
+  description String
+  messages    Message[]
+}
+
+model Message {
+  id         String  @id
+  contactId  String
+  level      Int
+  seq        Int
+  type       String
+  signal     String
+  textFr     String
+  contact    Contact @relation(fields: [contactId], references: [id])
+
+  @@index([contactId, level, seq])
+}
+

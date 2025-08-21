@@ -1,43 +1,98 @@
 import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../prisma.service';
+import { StartRoundDto } from './dto/start-round.dto';
+import { GuessDto } from './dto/guess.dto';
+import { RoundEntity } from './dto/round.entity';
 
 @Injectable()
 export class RoundsService {
-  constructor(private readonly prisma: PrismaService) {}
-  start(userId: string, level: number, contactId: string) {
-    return this.prisma.round.create({ data: { userId, level, contactId } });
+  constructor(private readonly db: PrismaService) {}
+
+  private userId(): string {
+    return process.env.DEV_USER_ID ?? '00000000-0000-0000-0000-000000000000';
   }
-  async reveal(userId: string, id: string) {
-    return this.prisma.round.update({
-      where: { id },
-      data: { turns: { increment: 1 }, multiplicator: { decrement: 0.1 } },
+
+  async start(dto: StartRoundDto): Promise<RoundEntity> {
+    const round = await this.db.round.create({
+      data: {
+        userId: this.userId(),
+        level: dto.level,
+        contactId: dto.contactId,
+        multiplicator: 1,
+        turns: 0,
+        status: 'running',
+        startedAt: new Date(),
+      },
     });
+    return round as unknown as RoundEntity;
   }
-  async guess(userId: string, id: string, correct: boolean) {
-    const round = await this.prisma.round.findUnique({ where: { id } });
-    if (!round) throw new Error('round_not_found');
-    if (correct) {
-      const delta = Math.max(10, Math.round(100 * Number(round.multiplicator)));
-      const r = await this.prisma.round.update({
-        where: { id },
-        data: { status: 'won', finishedAt: new Date() },
-      });
-      await this.prisma.scoreEvent.create({
-        data: { userId, roundId: id, type: 'win', delta },
-      });
-      return { round: r, delta };
-    }
-    const m = Math.max(0, Number(round.multiplicator) - 0.1);
-    await this.prisma.round.update({
-      where: { id },
-      data: { multiplicator: m },
+
+  async reveal(roundId: string) {
+    const round = await this.db.round.findUniqueOrThrow({
+      where: { id: roundId },
     });
-    await this.prisma.scoreEvent.create({
-      data: { userId, roundId: id, type: 'wrong_guess', delta: -10 },
+    const nextSeq = round.turns + 1;
+    const msg = await this.db.message.findFirst({
+      where: { contactId: round.contactId, level: round.level, seq: nextSeq },
+      orderBy: { seq: 'asc' },
+    });
+    const newMult = Math.max(
+      0,
+      Math.round(Number(round.multiplicator) * 0.9 * 100) / 100,
+    );
+    const updated = await this.db.round.update({
+      where: { id: roundId },
+      data: { multiplicator: newMult, turns: nextSeq },
     });
     return {
-      round: await this.prisma.round.findUnique({ where: { id } }),
-      delta: -10,
+      roundId,
+      newMultiplicator: updated.multiplicator,
+      turns: updated.turns,
+      message: msg?.textFr ?? null,
     };
+  }
+
+  async guess(roundId: string, dto: GuessDto) {
+    const round = await this.db.round.findUniqueOrThrow({
+      where: { id: roundId },
+    });
+    if (round.status !== 'running') {
+      return { round, delta: 0 };
+    }
+    if (dto.correct) {
+      const gain = Math.max(10, Math.round(100 * Number(round.multiplicator)));
+      const updated = await this.db.round.update({
+        where: { id: roundId },
+        data: { status: 'won', finishedAt: new Date() },
+      });
+      await this.db.scoreEvent.create({
+        data: {
+          userId: round.userId,
+          roundId: round.id,
+          type: 'guess',
+          delta: gain,
+        },
+      });
+      return { round: updated as unknown as RoundEntity, delta: gain };
+    } else {
+      const loss = -10;
+      const newMult = Math.max(
+        0,
+        Math.round(Number(round.multiplicator) * 0.9 * 100) / 100,
+      );
+      const updated = await this.db.round.update({
+        where: { id: roundId },
+        data: { multiplicator: newMult },
+      });
+      await this.db.scoreEvent.create({
+        data: {
+          userId: round.userId,
+          roundId: round.id,
+          type: 'guess',
+          delta: loss,
+        },
+      });
+      return { round: updated as unknown as RoundEntity, delta: loss };
+    }
   }
 }

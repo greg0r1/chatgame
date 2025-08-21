@@ -1,0 +1,140 @@
+<div class="min-h-screen bg-slate-900 text-slate-100 flex items-center justify-center p-6">
+    <div
+        class="w-full max-w-md bg-slate-800 rounded-3xl p-4 ring-1 ring-white/10 shadow-[0_10px_30px_rgba(0,0,0,0.4)] space-y-4">
+        <div class="flex items-center justify-between px-2 py-1.5 bg-slate-800 rounded-2xl ring-1 ring-white/10">
+            <div class="flex items-center gap-3">
+                <div class="h-9 w-9 rounded-full overflow-hidden bg-slate-700 flex items-center justify-center">
+                    <span class="text-slate-300 text-sm" *ngIf="!resolved()">{{ 'Inconnu'.slice(0,1) }}</span>
+                    <img *ngIf="resolved()" [src]="resolved()!.photo || ''" alt="" class="h-full w-full object-cover" />
+                </div>
+                <div class="leading-tight">
+                    <div class="font-semibold text-slate-100">{{ resolved()?.usageName || 'Inconnu' }}</div>
+                    <div class="text-xs text-slate-400">{{ resolved() ? 'Contact identifié' : 'Contact non identifié' }}
+                    </div>
+                </div>
+            </div>
+            <button class="px-3 py-1.5 rounded-full bg-white/5 text-slate-200 text-sm disabled:opacity-50"
+                [disabled]="!resolved()" (click)="profileOpen.set(true)">Fiche</button>
+        </div>
+
+        <div class="h-[54vh] overflow-y-auto rounded-2xl bg-slate-900 ring-1 ring-white/10 p-4 flex flex-col gap-2">
+            <div *ngFor="let b of shownBlocks()"
+                class="max-w-[78%] self-start px-4 py-2 rounded-2xl bg-slate-700/60 text-slate-200">
+                {{ b.text.fr }}
+            </div>
+            <div *ngIf="typing()" class="self-center max-w-[78%] px-4 py-2 rounded-2xl bg-slate-900 text-slate-400">
+                Saisie…
+            </div>
+        </div>
+
+        <div class="flex items-center gap-2 text-xs">
+            <div class="px-3 py-1 bg-slate-800 ring-1 ring-white/10 rounded-full text-slate-300">Niveau: {{
+                round().levelId }}/3</div>
+            <div class="px-3 py-1 bg-slate-800 ring-1 ring-white/10 rounded-full text-slate-300">Tours: {{ turns() }}/5
+            </div>
+            <div class="px-3 py-1 bg-slate-800 ring-1 ring-white/10 rounded-full text-slate-300">Points: {{ score() }}
+            </div>
+            <div class="px-3 py-1 bg-slate-800 ring-1 ring-white/10 rounded-full text-slate-300">Multiplicateur: x{{
+                mult().toFixed(2) }}</div>
+        </div>
+
+        <div class="space-y-2" *ngIf="!roundOver()">
+            <button class="w-full py-3 rounded-2xl bg-emerald-500 text-slate-900 disabled:opacity-50"
+                [disabled]="!canNext()" (click)="nextMessage()">Message suivant</button>
+            <div class="text-center text-xs text-emerald-400">−10% multiplicateur à chaque message supplémentaire</div>
+            <button class="w-full py-3 rounded-2xl bg-white/5 text-slate-200" (click)="openPicker()">Proposer un
+                personnage</button>
+        </div>
+
+        <div *ngIf="toast()" class="px-4 py-2 rounded-xl ring-1" [ngClass]="{
+           'bg-emerald-600/20 text-emerald-300 ring-emerald-500/20': toast()?.kind==='success',
+           'bg-rose-600/20 text-rose-300 ring-rose-500/20': toast()?.kind==='error',
+           'bg-white/10 text-slate-200 ring-white/10': toast()?.kind==='info'
+         }">
+            {{ toast()!.text }}
+        </div>
+    </div>
+
+    <div *ngIf="profileOpen()" class="fixed inset-0 z-50 flex items-center justify-center">
+        <div class="absolute inset-0 bg-black/60" (click)="profileOpen.set(false)"></div>
+        <div class="relative w-[92%] max-w-md bg-slate-800 ring-1 ring-white/10 rounded-3xl p-6">
+            <div *ngIf="resolved(); else noProfile" class="flex items-center gap-4">
+                <div class="h-16 w-16 rounded-full overflow-hidden bg-slate-700"></div>
+                <div>
+                    <div class="text-lg font-semibold text-slate-100">{{ resolved()!.usageName }}</div>
+                    <div class="text-sm text-slate-400">{{ resolved()!.description.fr }}</div>
+                </div>
+            </div>
+            <ng-template #noProfile>
+                <div class="text-slate-200">Aucune fiche disponible.</div>
+            </ng-template>
+            <div class="mt-5 grid grid-cols-3 gap-2">
+                <button disabled
+                    class="px-3 py-2 rounded-xl bg-white/5 text-sm text-slate-400 opacity-50">Appeler</button>
+                <button disabled
+                    class="px-3 py-2 rounded-xl bg-white/5 text-sm text-slate-400 opacity-50">Message</button>
+                <button disabled
+                    class="px-3 py-2 rounded-xl bg-white/5 text-sm text-slate-400 opacity-50">Bloquer</button>
+            </div>
+            <div class="mt-5 text-right">
+                <button class="px-4 py-2 rounded-xl bg-white/10 text-slate-200"
+                    (click)="profileOpen.set(false)">Fermer</button>
+            </div>
+        </div>
+    </div>
+
+    @if (pickerOpen()) { <div class="fixed inset-0 z-50 flex items-center justify-center">
+        <div class="absolute inset-0 bg-black/60" (click)="pickerOpen.set(false)"></div>
+        <div class="relative w-[92%] max-w-md bg-slate-800 ring-1 ring-white/10 rounded-3xl p-6">
+            <div class="text-lg font-semibold text-slate-100">Choisir un personnage</div>
+            <div class="mt-3 max-h-72 overflow-y-auto pr-1 space-y-2">
+                <button *ngFor="let s of suspectsFull()" (click)="selected.set(s.id)"
+                    class="w-full flex items-center justify-between px-3 py-2 rounded-xl"
+                    [ngClass]="selected()===s.id ? 'bg-emerald-500/20 ring-1 ring-emerald-500/40 text-slate-200' : 'bg-white/5 text-slate-200'">
+                    <div class="flex items-center gap-3">
+                        <div class="h-9 w-9 rounded-full overflow-hidden bg-slate-700"></div>
+                        <span>{{ s.usageName }}</span>
+                    </div>
+                    <div class="h-4 w-4 rounded-full border"
+                        [ngClass]="selected()===s.id ? 'bg-emerald-400 border-emerald-400' : 'border-slate-500'"></div>
+                </button>
+            </div>
+            <div class="mt-4 flex items-center justify-end gap-3">
+                <button class="px-4 py-2 rounded-xl bg-white/10 text-slate-200"
+                    (click)="pickerOpen.set(false)">Annuler</button>
+                <button class="px-4 py-2 rounded-xl bg-emerald-500 text-slate-900"
+                    (click)="validateGuess()">Valider</button>
+            </div>
+        </div>
+    </div>}
+
+
+    @if (winOpen()) { <div class="fixed inset-0 z-50 flex items-center justify-center">
+        <div class="absolute inset-0 bg-black/60"></div>
+        <div class="relative w-[92%] max-w-md bg-slate-800 ring-1 ring-white/10 rounded-3xl p-6 text-center">
+            <div class="text-6xl mb-3 animate-bounce">🏆</div>
+            <div class="text-xl font-semibold text-slate-100">Bravo, niveau réussi</div>
+            <div class="mt-1 text-slate-300">+{{ Math.max(10, Math.round(100 * mult())) }} points</div>
+            <div class="mt-5 grid grid-cols-2 gap-2">
+                <button class="py-3 rounded-2xl bg-emerald-500 text-slate-900"
+                    (click)="winOpen.set(false); nextLevel()">Niveau suivant</button>
+                <button class="py-3 rounded-2xl bg-white/10 text-slate-200"
+                    (click)="profileOpen.set(true); winOpen.set(false)">Voir la fiche</button>
+            </div>
+        </div>
+    </div>}
+
+
+    @if (loseOpen()) { <div class="fixed inset-0 z-50 flex items-center justify-center">
+        <div class="absolute inset-0 bg-black/60"></div>
+        <div class="relative w-[92%] max-w-md bg-slate-800 ring-1 ring-white/10 rounded-3xl p-6 text-center">
+            <div class="text-6xl mb-3">❌</div>
+            <div class="text-xl font-semibold text-slate-100">Mauvaise réponse</div>
+            <div class="mt-1 text-rose-300">−{{ lastLost() }} points</div>
+            <div class="mt-5 w-full">
+                <button class="w-full py-3 rounded-2xl bg-emerald-500 text-slate-900"
+                    (click)="loseOpen.set(false)">Continuer</button>
+            </div>
+        </div>
+    </div>}
+</div>

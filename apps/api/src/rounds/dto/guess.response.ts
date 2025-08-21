@@ -1,7 +1,7 @@
 import { ApiProperty } from '@nestjs/swagger';
 import { RoundEntity } from './round.entity';
 
-export class GuessResponse {
+export class GuessResponseDto {
   @ApiProperty({ type: RoundEntity })
   round: RoundEntity;
 
